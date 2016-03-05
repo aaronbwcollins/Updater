@@ -7,9 +7,7 @@ import PBridge
 import requests
 import pprint
 import sys
-
-## Testing
-
+import re
 
 ## Configuration
 syslog.openlog('Updater')
@@ -89,7 +87,7 @@ def activate(comp_id, auth):
         </extension_attributes>
     </computer>"""
     r = requests.put(sendurl, auth=auth, headers=header, data=xml).text
-    # return r
+    return r
 
 def deactivate(comp_id, auth):
     url = 'https://zenefits.jamfcloud.com/JSSResource/computers/id/'
@@ -111,29 +109,60 @@ def deactivate(comp_id, auth):
         </extension_attributes>
     </computer>"""
     r = requests.put(sendurl, auth=auth, headers=header, data=xml).text
-    # return r
+    return r
 
 def barcode_scan(text):
     #
-    barcode_view = """
-    *.title = Updater - JSS Update
-    text.type = text
-    """
-    barcode_view += "\ntext.default = %s[return]Please Scan Barcode\n" % text
-    barcode_view += """
-    text.height = 50
-    text.width = 256
-    barcode.type = textfield
-    barcode.label = 
-    barcode.width = 256
-    cb.type = cancelbutton
+    barcode_vaild = 0
+    while not barcode_vaild:
+        barcode_view = """
+        *.title = Updater - JSS Update
+        text.type = text
+        """
+        barcode_view += "\ntext.default = %s[return]Please Scan Barcode\n" % text
+        barcode_view += """
+        text.height = 50
+        text.width = 256
+        barcode.type = textfield
+        barcode.label = 
+        barcode.width = 256
+        cb.type = cancelbutton
 
-    """
-    result = PBridge.run(barcode_view)
-    if result["cb"] == "1":
-        logger("User Canceled")
-        sys.exit(0)
+        """
+        result = PBridge.run(barcode_view)
+        if result["cb"] == "1":
+            logger("User Canceled")
+            sys.exit(0)
+        r = re.compile(r'[0-9]{8}')
+        rfind = r.findall(result['barcode'])
+        if rfind:
+            barcode_vaild = 1
+
     return result['barcode']
+
+def result_confirm(result_value):
+    result_view="""
+    *.title = Updater
+    # Introductory text
+    txt.type = text
+    """
+    result_view += "\ntxt.default = %s" % result_value
+    result_view +="""
+    txt.height = 50
+    txt.width = 256
+    """
+    result = PBridge.run(result_view)
+
+def failed_scan():
+    failed_view="""
+    *.title = Updater
+    # Introductory text
+    txt.type = text
+    txt.default = Scanned assest was not found!
+    txt.height = 50
+    txt.width = 256
+    """
+    result = PBridge.run(failed_view)
 
 def function_select():
     # Allows user to select function
@@ -175,16 +204,28 @@ def main_loop():
         text = "*(Activate Mode)*"
         scan = barcode_scan(text)
         info = get_info(scan, creds)
-        comp_id = str(info['computers'][0]['id'])
-        activate(comp_id, creds)
+        if len(info['computers']) == 1:
+            comp_id = str(info['computers'][0]['id'])
+            returned = activate(comp_id, creds)
+            result_confirm(returned)
+        else:
+            failed_scan()
+            logger('Computers expected 1 got %d' % (len(info['computers']))) 
     elif function == 'Deactivate':
         text = "*(Deactivate Mode)*"
         scan = barcode_scan(text)
         info = get_info(scan, creds)
-        comp_id = str(info['computers'][0]['id'])
-        deactivate(comp_id, creds)
+        if len(info['computers']) == 1:
+            comp_id = str(info['computers'][0]['id'])
+            returned = deactivate(comp_id, creds)
+            result_confirm(returned)
+        else:
+            failed_scan()
+            logger('Computers expected 1 got %d' % (len(info['computers'])))
         
-#Main
+# Testing
+# barcode_scan('')
+# Main
 
 if __name__ == "__main__":
     logger("Starting Updater")

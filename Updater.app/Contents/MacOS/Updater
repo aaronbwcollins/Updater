@@ -1,0 +1,303 @@
+#!/usr/bin/env python
+
+import syslog
+import xml.etree.cElementTree as ET
+import requests
+import PBridge
+import requests
+import sys
+import re
+
+## Configuration
+syslog.openlog('Updater')
+
+## Functions
+def error(error_message):
+    print(error_message)
+
+def login():
+    # Gets JSS creds
+    authorized = False
+    while not authorized:
+        authview = """
+        # Set window title
+        *.title = Updater
+        # Introductory text
+        txt.type = text
+        txt.default = Please Log into Casper
+        txt.height = 50
+        txt.width = 256
+        # Add a text field
+        username.type = textfield
+        username.label = Username
+        username.default = username
+        username.width = 256
+        username.tooltip = Casper Username
+
+        # Add a password field
+        password.type = password
+        password.label = Password
+        password.width = 256
+        password.tooltip = Casper Password
+
+        # Add a cancel button with default label
+        cb.type = cancelbutton
+        """
+
+        result = PBridge.run(authview)
+        if result["cb"] == "1":
+            sys.exit(0)
+        else:
+            user = result["username"]
+            pprompt = result["password"]
+            creds = (user, pprompt)
+            authorized = jsstest(creds)
+        if not authorized:
+            print("Bad credentials or unauthorized")
+    return creds
+
+def jsstest(creds):
+    # Tests that jss creds are valid
+    r = requests.get('https://zenefits.jamfcloud.com/JSSResource/computers', auth=creds)
+    response = (r.status_code)
+    print(response)
+    return r
+
+def get_info(match, creds):
+    # Returns json of computers info
+    sendurl = 'https://zenefits.jamfcloud.com/JSSResource/computers/match/%s' % match
+    header = {'Accept': 'application/json'}
+    r = requests.get(sendurl, auth=creds, headers=header)
+    response = r.json()
+    return response
+
+def get_ram(comp_id, creds):
+    # Returns json of computers ram
+    sendurl = 'https://zenefits.jamfcloud.com/JSSResource/computers/id/%s/subset/hardware' % comp_id
+    header = {'Accept': 'application/json'}
+    r = requests.get(sendurl, auth=creds, headers=header)
+    response = r.json()
+    return response['computer']['hardware']['total_ram']
+
+def get_status(comp_id, creds):
+    # Returns EA named Status
+    sendurl = 'https://zenefits.jamfcloud.com/JSSResource/computers/id/%s/subset/extension_attributes' % comp_id
+    header = {'Accept': 'application/json'}
+    r = requests.get(sendurl, auth=creds, headers=header)
+    response = r.json()
+    response = response['computer']['extension_attributes']
+    for items in response:
+        if items['id'] == 11:
+            return items['value']
+
+
+def activate(comp_id, creds):
+    # Sets Status to Deployed
+    sendurl = 'https://zenefits.jamfcloud.com/JSSResource/computers/id/%s' % comp_id
+    header = {'Content-Type': 'text/xml'}
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <computer>
+        <extension_attributes>
+            <attribute>
+                <name>Status</name>
+                <value>Deployed</value>
+            </attribute>
+        </extension_attributes>
+    </computer>"""
+    r = requests.put(sendurl, auth=creds, headers=header, data=xml).text
+    return r
+
+def deactivate(comp_id, creds):
+    # Sets status to Legal Hold and clears user fields
+    sendurl = 'https://zenefits.jamfcloud.com/JSSResource/computers/id/%s' % comp_id
+    header = {'Content-Type': 'text/xml'}
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <computer>
+        <location>
+            <real_name></real_name>
+            <email_address></email_address>
+            <department></department>
+        </location>
+        <extension_attributes>
+            <attribute>
+                <name>Status</name>
+                <value>Legal Hold</value>
+            </attribute>
+        </extension_attributes>
+    </computer>"""
+    r = requests.put(sendurl, auth=creds, headers=header, data=xml).text
+    return r
+
+def deactivate_inv(comp_id, creds):
+    #  Clears user fields, but doesn't set status due to error
+    sendurl = 'https://zenefits.jamfcloud.com/JSSResource/computers/id/%s' % comp_id
+    header = {'Content-Type': 'text/xml'}
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <computer>
+        <location>
+            <real_name></real_name>
+            <email_address></email_address>
+            <department></department>
+        </location>
+    </computer>"""
+    r = requests.put(sendurl, auth=creds, headers=header, data=xml).text
+    return r
+
+def barcode_scan(text):
+    # Asks for asset barcode using Pashua
+    barcode_vaild = 0
+    while not barcode_vaild:
+        barcode_view = """
+        *.title = Updater - JSS Update
+        text.type = text
+        """
+        barcode_view += "\ntext.default = %s[return]Please Scan Barcode\n" % text
+        barcode_view += """
+        text.height = 50
+        text.width = 256
+        barcode.type = textfield
+        barcode.label = 
+        barcode.width = 256
+        cb.type = cancelbutton
+
+        """
+        result = PBridge.run(barcode_view)
+        if result["cb"] == "1":
+            logger("User Canceled")
+            sys.exit(0)
+        r = re.compile(r'[0-9]{8}')
+        rfind = r.findall(result['barcode'])
+        if rfind:
+            barcode_vaild = 1
+
+    return result['barcode']
+
+def result_confirm(result_value):
+    # Returns xml return after call is made
+    result_view="""
+    *.title = Updater
+    # Introductory text
+    txt.type = text
+    """
+    result_view += "\ntxt.default = %s" % result_value
+    result_view +="""
+    txt.height = 50
+    txt.width = 256
+    """
+    result = PBridge.run(result_view)
+
+def failed_scan():
+    # Produces Pashua that asset was not found
+    failed_view="""
+    *.title = Updater
+    # Introductory text
+    txt.type = text
+    txt.default = Scanned assest was not found!
+    txt.height = 50
+    txt.width = 256
+    """
+    result = PBridge.run(failed_view)
+
+def ram_warning():
+    # Warns with Ram is 4GB
+    ram_view="""
+    *.title = Updater
+    # Introductory text
+    txt.type = text
+    txt.default = Ram is 4GB please take out of active!
+    txt.height = 50
+    txt.width = 256
+    """
+    result = PBridge.run(ram_view)
+
+def status_warning(status):
+    # Warns that status idn't deployed during deactivation
+    status_view="""
+    *.title = Updater
+    # Introductory text
+    txt.type = text
+    """
+    status_view += "\ntxt.default = Status is currently: %s.[return]Expecting \"Deployed\". Please Investigate!" % status
+    status_view += """
+    txt.height = 50
+    txt.width = 256
+    """
+    result = PBridge.run(status_view)
+
+def function_select():
+    # Allows user to select function
+    function_view="""
+    *.title = Updater
+    # Introductory text
+    txt.type = text
+    txt.default = Please select which function you would like to perform
+    txt.height = 50
+    txt.width = 256
+    # Add a popup menu
+    pop.type = popup
+    pop.label = Function
+    pop.width = 256
+    pop.option = Activate
+    pop.option = Deactivate
+    pop.default = Activate
+    # Add a cancel button with default label
+    cb.type = cancelbutton
+    """
+    selection = PBridge.run(function_view)
+    function = ""
+    if selection["cb"] == "1":
+        sys.exit(0)
+    elif selection["pop"] == "Activate":
+        function = selection["pop"]
+    elif selection["pop"] == "Deactivate":
+        function = selection["pop"]
+    return function
+
+def logger(message):
+    syslog.syslog(syslog.LOG_ALERT, message)
+
+def main_loop():
+  creds = login()
+  function =  function_select()
+  while True:
+    if function == 'Activate':
+        text = "*(Activate Mode)*"
+        scan = barcode_scan(text)
+        info = get_info(scan, creds)
+        if len(info['computers']) == 1:
+            comp_id = str(info['computers'][0]['id'])
+            returned = activate(comp_id, creds)
+            result_confirm(returned)
+        else:
+            failed_scan()
+            logger('Computers expected 1 got %d' % (len(info['computers']))) 
+    elif function == 'Deactivate':
+        text = "*(Deactivate Mode)*"
+        scan = barcode_scan(text)
+        info = get_info(scan, creds)
+        if len(info['computers']) == 1:
+            comp_id = str(info['computers'][0]['id'])
+            ram_size = get_ram(comp_id, creds)
+            status = get_status(comp_id, creds)
+            if ram_size == 4096:
+                ram_warning()
+            if status != "Deployed":
+                status_warning(status)
+                returned = deactivate_inv(comp_id, creds)
+                result_confirm(returned)
+            else:
+                returned = deactivate(comp_id, creds)
+                result_confirm(returned)
+        else:
+            failed_scan()
+            logger('Computers expected 1 got %d' % (len(info['computers'])))
+
+
+# Testing
+# barcode_scan('')
+# Main
+
+if __name__ == "__main__":
+    logger("Starting Updater")
+    main_loop()
+    logger("Updater has exited")

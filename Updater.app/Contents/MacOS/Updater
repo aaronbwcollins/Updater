@@ -8,6 +8,10 @@ import requests
 import sys
 import re
 
+## TODO:
+## Add Manual Function
+## Add GSheet entry
+
 ## Configuration
 syslog.openlog('Updater')
 
@@ -69,6 +73,7 @@ def get_info(match, creds):
     header = {'Accept': 'application/json'}
     r = requests.get(sendurl, auth=creds, headers=header)
     response = r.json()
+    # print(response)
     return response
 
 def get_ram(comp_id, creds):
@@ -114,6 +119,7 @@ def deactivate(comp_id, creds):
     xml = """<?xml version="1.0" encoding="UTF-8"?>
     <computer>
         <location>
+            <username></username>
             <real_name></real_name>
             <email_address></email_address>
             <department></department>
@@ -126,6 +132,7 @@ def deactivate(comp_id, creds):
         </extension_attributes>
     </computer>"""
     r = requests.put(sendurl, auth=creds, headers=header, data=xml).text
+    print(r)
     return r
 
 def deactivate_inv(comp_id, creds):
@@ -135,13 +142,43 @@ def deactivate_inv(comp_id, creds):
     xml = """<?xml version="1.0" encoding="UTF-8"?>
     <computer>
         <location>
+            <username></username>
             <real_name></real_name>
             <email_address></email_address>
             <department></department>
         </location>
     </computer>"""
     r = requests.put(sendurl, auth=creds, headers=header, data=xml).text
+    print(r)
     return r
+
+def result_confirm(result_value):
+    # Returns xml return after call is made
+    result_view="""
+    *.title = Updater
+    # Introductory text
+    txt.type = text
+    """
+    result_view += "\ntxt.default = %s" % result_value
+    result_view +="""
+    txt.height = 50
+    txt.width = 256
+    """
+    result = PBridge.run(result_view)
+
+def failed_scan(number):
+    # Produces Pashua that asset was not found
+    failed_view="""
+    *.title = Updater
+    # Introductory text
+    txt.type = text
+    """
+    failed_view += "\ntxt.default = Scan Failed![return]Computers expected 1 got %d.[return]Please finish manually!\n" % number
+    failed_view += """
+    txt.height = 50
+    txt.width = 256
+    """
+    result = PBridge.run(failed_view)
 
 def barcode_scan(text):
     # Asks for asset barcode using Pashua
@@ -169,34 +206,10 @@ def barcode_scan(text):
         rfind = r.findall(result['barcode'])
         if rfind:
             barcode_vaild = 1
+        else:
+            failed_scan(0)
 
     return result['barcode']
-
-def result_confirm(result_value):
-    # Returns xml return after call is made
-    result_view="""
-    *.title = Updater
-    # Introductory text
-    txt.type = text
-    """
-    result_view += "\ntxt.default = %s" % result_value
-    result_view +="""
-    txt.height = 50
-    txt.width = 256
-    """
-    result = PBridge.run(result_view)
-
-def failed_scan():
-    # Produces Pashua that asset was not found
-    failed_view="""
-    *.title = Updater
-    # Introductory text
-    txt.type = text
-    txt.default = Scanned assest was not found!
-    txt.height = 50
-    txt.width = 256
-    """
-    result = PBridge.run(failed_view)
 
 def ram_warning():
     # Warns with Ram is 4GB
@@ -269,8 +282,9 @@ def main_loop():
             returned = activate(comp_id, creds)
             result_confirm(returned)
         else:
-            failed_scan()
-            logger('Computers expected 1 got %d' % (len(info['computers']))) 
+            print(len(info['computers']))
+            failed_scan(len(info['computers']))
+            logger('Scan Failed![return]Computers expected 1 got %d.' % (len(info['computers']))) 
     elif function == 'Deactivate':
         text = "*(Deactivate Mode)*"
         scan = barcode_scan(text)
@@ -282,15 +296,20 @@ def main_loop():
             if ram_size == 4096:
                 ram_warning()
             if status != "Deployed":
-                status_warning(status)
-                returned = deactivate_inv(comp_id, creds)
-                result_confirm(returned)
+                if status == "Available Stock":
+                    returned = deactivate(comp_id, creds)
+                    result_confirm(returned)
+                else:
+                    status_warning(status)
+                    returned = deactivate_inv(comp_id, creds)
+                    result_confirm(returned)
             else:
                 returned = deactivate(comp_id, creds)
                 result_confirm(returned)
         else:
-            failed_scan()
-            logger('Computers expected 1 got %d' % (len(info['computers'])))
+            print('Computers expected 1 got %d' % (len(info['computers'])))
+            failed_scan(len(info['computers']))
+            logger('Scan Failed!\nComputers expected 1 got %d.' % (len(info['computers'])))
 
 
 # Testing

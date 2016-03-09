@@ -8,23 +8,34 @@ import requests
 import sys
 import re
 import gspread
+import json
+import os
+from oauth2client.client import SignedJwtAssertionCredentials
+import time
 
 ## TODO:
 ## Add Manual Function
 ## Add GSheet entry
 
-# exec_path = os.path.dirname(os.path.realpath(__file__))
+exec_path = os.path.dirname(os.path.realpath(__file__))
 ## Configuration
 syslog.openlog('Updater')
-# json_key = json.load(open("%s/inventory-06b3cba18fd9.json" % exec_path))
+json_key = json.load(open("%s/Updater-5ed00fe10ecc.json" % exec_path))
+location = "SF"
 
 
 # Variables to not edit
-# scope = ['https://spreadsheets.google.com/feeds']
-# google_credentials = SignedJwtAssertionCredentials(
-#     json_key['client_email'], json_key['private_key'], scope)
-# gc = gspread.authorize(google_credentials)
-# wks = gc.open('Macbook In/Out (Term & Redistribute)')
+scope = ['https://spreadsheets.google.com/feeds']
+google_credentials = SignedJwtAssertionCredentials(
+    json_key['client_email'], json_key['private_key'].encode(), scope)
+gc = gspread.authorize(google_credentials)
+wks = gc.open("Macbook In/Out (Term & Redistribute)")
+if location == "AZ":
+    current_wks = wks.get_worksheet(1)
+if location == "SF":
+    current_wks = wks.get_worksheet(2)
+else:
+    print("location not found")
 
 ## Functions
 def error(error_message):
@@ -195,8 +206,14 @@ def deactivate_without_status(comp_id, creds):
     print(r)
     return r
 
-# def update_wks(comp_id, creds):
-#     sendurl = 'https://zenefits.jamfcloud.com/JSSResource/computers/id/'
+def update_wks(scan, name, location, status, row):
+    date = time.strftime("%m/%d/%y")
+    range_val = 'A%d:E%d' % (row, row) 
+    cell_list = current_wks.range(range_val) 
+    cell_values = ['{0}'.format(date),'{0}'.format(name),'{0}'.format(scan),'{0}'.format(location),'{0}'.format(status)]
+    for i, val in enumerate(cell_values):
+        cell_list[i].value = val
+    current_wks.update_cells(cell_list)
 
 def result_confirm(result_value):
     # Returns xml return after call is made
@@ -353,7 +370,18 @@ def main_loop():
         info = get_info(scan, creds)
         if len(info['computers']) == 1:
             comp_id = str(info['computers'][0]['id'])
+            status = get_status(comp_id, creds)
+            name = info['computers'][0]['realname']
+            location = info['computers'][0]['building_name']
             returned = activate(comp_id, creds)
+            try:
+                cell = current_wks.find(scan)
+                cellRow = int(cell.row)
+                update_wks(scan, name, location, 'Deployed', cellRow)
+            except Exception:
+                list_of_lists = current_wks.get_all_values()
+                new_row = len(list_of_lists) + 1
+                update_wks(scan, name, location, 'Deployed', new_row)
             result_confirm(returned)
         else:
             print(len(info['computers']))
@@ -367,18 +395,32 @@ def main_loop():
             comp_id = str(info['computers'][0]['id'])
             ram_size = get_ram(comp_id, creds)
             status = get_status(comp_id, creds)
-            if ram_size == 4096:
-                ram_warning()
-            if status != "Deployed":
-                if status == "Available Stock":
-                    returned = deactivate(comp_id, creds)
-                    result_confirm(returned)
-                else:
-                    status_warning(status)
-                    returned = deactivate_without_status(comp_id, creds)
-                    result_confirm(returned)
+            name = info['computers'][0]['realname']
+            location = info['computers'][0]['building_name']
+            # if ram_size == 4096:
+            #     ram_warning()
+            if (status != "Deployed" and status != "Available Stock" and status != "" and status != "Legal Hold"):
+                status_warning(status)
+                returned = deactivate_without_status(comp_id, creds)
+                try:
+                    cell = current_wks.find(scan)
+                    cellRow = int(cell.row)
+                    update_wks(scan, name, location, status, cellRow)
+                except Exception:
+                    list_of_lists = current_wks.get_all_values()
+                    new_row = len(list_of_lists) + 1
+                    update_wks(scan, name, location, status, new_row)
+                result_confirm(returned)
             else:
                 returned = deactivate(comp_id, creds)
+                try:
+                    cell = current_wks.find(scan)
+                    cellRow = int(cell.row)
+                    update_wks(scan, name, location, 'Legal Hold', cellRow)
+                except Exception:
+                    list_of_lists = current_wks.get_all_values()
+                    new_row = len(list_of_lists) + 1
+                    update_wks(scan, name, location, 'Legal Hold', new_row)
                 result_confirm(returned)
         else:
             print('Computers expected 1 got %d' % (len(info['computers'])))
@@ -394,9 +436,20 @@ def main_loop():
         if len(info['computers']) == 1:
             comp_id = str(info['computers'][0]['id'])
             ram_size = get_ram(comp_id, creds)
+            status = get_status(comp_id, creds)
+            name = info['computers'][0]['realname']
+            location = info['computers'][0]['building_name']
             if ram_size == 4096:
                 ram_warning()
             returned = set_manual_status(comp_id, creds, manual_status)
+            try:
+                cell = current_wks.find(scan)
+                cellRow = int(cell.row)
+                update_wks(scan, name, location, manual_status, cellRow)
+            except Exception:
+                list_of_lists = current_wks.get_all_values()
+                new_row = len(list_of_lists) + 1
+                update_wks(scan, name, location, manual_status, new_row)
             result_confirm(returned)
         else:
             print('Computers expected 1 got %d' % (len(info['computers'])))

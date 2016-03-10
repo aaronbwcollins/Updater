@@ -26,7 +26,7 @@ exec_path = os.path.dirname(os.path.realpath(__file__))
 ## Configuration
 syslog.openlog('Updator')
 json_key = json.load(open("%s/Updater-5ed00fe10ecc.json" % exec_path))
-shelfFile = shelve.open('config')
+shelfFile = shelve.open('%s/config' % exec_path)
 
 # Variables to not edit
 scope = ['https://spreadsheets.google.com/feeds']
@@ -497,6 +497,6 @@ def main_loop():
 # Main
 
 if __name__ == "__main__":
-    logger("Starting Updoter")
+    logger("Starting Updator")
     main_loop()
     logger("Updator has exited")

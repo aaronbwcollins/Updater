@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+### Updater.app
+### Written by Aaron B.W. Collins assistance and PBridge.py by Andrew Rose
+### 03/10/16
+### V.1.0
 
 import syslog
 import xml.etree.cElementTree as ET
@@ -19,7 +23,7 @@ import time
 
 exec_path = os.path.dirname(os.path.realpath(__file__))
 ## Configuration
-syslog.openlog('Updater')
+syslog.openlog('Updator')
 json_key = json.load(open("%s/Updater-5ed00fe10ecc.json" % exec_path))
 location = "SF"
 
@@ -47,7 +51,7 @@ def login():
     while not authorized:
         authview = """
         # Set window title
-        *.title = Updater
+        *.title = Updator
         # Introductory text
         txt.type = text
         txt.default = Please Log into Casper
@@ -218,7 +222,7 @@ def update_wks(scan, name, location, status, row):
 def result_confirm(result_value):
     # Returns xml return after call is made
     result_view="""
-    *.title = Updater
+    *.title = Updator
     # Introductory text
     txt.type = text
     """
@@ -232,7 +236,7 @@ def result_confirm(result_value):
 def failed_scan(number):
     # Produces Pashua that asset was not found
     failed_view="""
-    *.title = Updater
+    *.title = Updator
     # Introductory text
     txt.type = text
     """
@@ -248,7 +252,7 @@ def barcode_scan(text):
     barcode_vaild = 0
     while not barcode_vaild:
         barcode_view = """
-        *.title = Updater - JSS Update
+        *.title = Updator - JSS Update
         text.type = text
         """
         barcode_view += "\ntext.default = %s[return]Please Scan Barcode\n" % text
@@ -277,7 +281,7 @@ def barcode_scan(text):
 def ram_warning():
     # Warns with Ram is 4GB
     ram_view="""
-    *.title = Updater
+    *.title = Updator
     # Introductory text
     txt.type = text
     txt.default = Ram is 4GB please take out of active!
@@ -289,7 +293,7 @@ def ram_warning():
 def status_warning(status):
     # Warns that status idn't deployed during deactivation
     status_view="""
-    *.title = Updater
+    *.title = Updator
     # Introductory text
     txt.type = text
     """
@@ -303,7 +307,7 @@ def status_warning(status):
 def set_status(status):
     #Creates Popup for status
     status_view="""
-    *.title = Updater
+    *.title = Updator
     # Introductory text
     txt.type = text
     txt.default = What status would you like to set?
@@ -327,7 +331,7 @@ def set_status(status):
 def function_select():
     # Allows user to select function
     function_view="""
-    *.title = Updater
+    *.title = Updator
     # Introductory text
     txt.type = text
     txt.default = Please select which function you would like to perform
@@ -462,6 +466,6 @@ def main_loop():
 # Main
 
 if __name__ == "__main__":
-    logger("Starting Updater")
+    logger("Starting Updoter")
     main_loop()
-    logger("Updater has exited")
+    logger("Updator has exited")

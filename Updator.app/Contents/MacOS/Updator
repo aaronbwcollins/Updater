@@ -382,6 +382,18 @@ def select_office():
         office_location == selection["pop"]
     return office_location
 
+def get_info(scan, name, status, location):
+    get_info_view="""
+    *.title = Updator
+    # Introductory text
+    txt.type = text
+    txt.default = Asset: %s[return]Name: %s[return]Status: %s[return]Location: %s
+    txt.height = 50
+    txt.width = 256
+    """ % (scan, name, status, location)
+    result = PBridge.run(get_info_view)
+
+
 def logger(message):
     syslog.syslog(syslog.LOG_ALERT, message)
 
@@ -490,6 +502,17 @@ def main_loop():
                 print('Computers expected 1 got %d' % (len(info['computers'])))
                 failed_scan(len(info['computers']))
                 logger('Scan Failed!\nComputers expected 1 got %d.' % (len(info['computers'])))
+        elif function == 'Get Info'
+            text = "*(Get Info)*"
+            scan = barcode_scan(text)
+            info = get_info(scan, creds)
+            if len(info['computers']) == 1:
+                comp_id = str(info['computers'][0]['id'])
+                status = get_status(comp_id, creds)
+                name = info['computers'][0]['realname']
+                location = info['computers'][0]['building_name']
+            get_info(scan, name, status, location)
+
 
 # Testing
 # barcode_scan('')

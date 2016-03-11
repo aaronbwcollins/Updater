@@ -338,6 +338,7 @@ def function_select():
     pop.option = Activate
     pop.option = Deactivate
     pop.option = Manual
+    pop.option = Get Info
     pop.default = Activate
     # Add a cancel button with default label
     cb.type = cancelbutton
@@ -351,6 +352,8 @@ def function_select():
     elif selection["pop"] == "Deactivate":
         function = selection["pop"]
     elif selection["pop"] == "Manual":
+        function = selection["pop"]
+    elif selection["pop"] == "Get Info"
         function = selection["pop"]
     return function
 

@@ -353,7 +353,7 @@ def function_select():
         function = selection["pop"]
     elif selection["pop"] == "Manual":
         function = selection["pop"]
-    elif selection["pop"] == "Get Info"
+    elif selection["pop"] == "Get Info":
         function = selection["pop"]
     return function
 
@@ -385,7 +385,7 @@ def select_office():
         office_location == selection["pop"]
     return office_location
 
-def get_info(scan, name, status, location):
+def get_info_screen(scan, name, status, location):
     get_info_view="""
     *.title = Updator
     # Introductory text
@@ -505,7 +505,7 @@ def main_loop():
                 print('Computers expected 1 got %d' % (len(info['computers'])))
                 failed_scan(len(info['computers']))
                 logger('Scan Failed!\nComputers expected 1 got %d.' % (len(info['computers'])))
-        elif function == 'Get Info'
+        elif function == 'Get Info':
             text = "*(Get Info)*"
             scan = barcode_scan(text)
             info = get_info(scan, creds)
@@ -514,7 +514,7 @@ def main_loop():
                 status = get_status(comp_id, creds)
                 name = info['computers'][0]['realname']
                 location = info['computers'][0]['building_name']
-            get_info(scan, name, status, location)
+            get_info_screen(scan, name, status, location)
 
 
 # Testing

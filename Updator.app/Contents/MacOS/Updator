@@ -536,7 +536,7 @@ def get_info_screen(scan, name, status, location, room, shit_list):
         shit += '[return]%s' % i
     room_if = ""
     if room != "":
-        room_if = "[return]%s" % room
+        room_if = "[return]Room: %s" % room
     get_info_view="""
     *.title = Updator
     # Introductory text

@@ -113,6 +113,7 @@ def activate_mode(creds, current_wks):
             print(len(info['computers']))
             failed_scan(len(info['computers']))
             logger('Scan Failed![return]Computers expected 1 got %d.' % (len(info['computers'])))
+        return True
 
 def deactivate_mode(creds, current_wks):
     text = "*(Deactivate Mode)*"
@@ -156,6 +157,7 @@ def deactivate_mode(creds, current_wks):
             print('Computers expected 1 got %d' % (len(info['computers'])))
             failed_scan(len(info['computers']))
             logger('Scan Failed!\nComputers expected 1 got %d.' % (len(info['computers'])))
+        return True
 
 def manual_mode(creds, current_wks):
     manual_status = ''
@@ -186,6 +188,7 @@ def manual_mode(creds, current_wks):
                 new_row = len(list_of_lists) + 1
                 update_wks(scan, name, location, manual_status, new_row, current_wks)
             result_confirm(returned)
+            return True
         else:
             print('Computers expected 1 got %d' % (len(info['computers'])))
             failed_scan(len(info['computers']))

@@ -90,66 +90,74 @@ def jsstest(creds):
 def activate_mode(creds, current_wks):
     text = "*(Activate Mode)*"
     scan = barcode_scan(text)
-    info = get_info(scan, creds)
-    if len(info['computers']) == 1:
-        comp_id = str(info['computers'][0]['id'])
-        status = get_status(comp_id, creds)
-        name = info['computers'][0]['realname']
-        location = info['computers'][0]['building_name']
-        returned = activate(comp_id, creds)
-        try:
-            cell = current_wks.find(scan)
-            cellRow = int(cell.row)
-            update_wks(scan, name, location, 'Deployed', cellRow, current_wks)
-        except Exception:
-            list_of_lists = current_wks.get_all_values()
-            new_row = len(list_of_lists) + 1
-            update_wks(scan, name, location, 'Deployed', new_row, current_wks)
-        result_confirm(returned)
+    if scan == 'exit':
+        return False
     else:
-        print(len(info['computers']))
-        failed_scan(len(info['computers']))
-        logger('Scan Failed![return]Computers expected 1 got %d.' % (len(info['computers'])))
+        info = get_info(scan, creds)
+        if len(info['computers']) == 1:
+            comp_id = str(info['computers'][0]['id'])
+            status = get_status(comp_id, creds)
+            name = info['computers'][0]['realname']
+            location = info['computers'][0]['building_name']
+            returned = activate(comp_id, creds)
+            try:
+                cell = current_wks.find(scan)
+                cellRow = int(cell.row)
+                update_wks(scan, name, location, 'Deployed', cellRow, current_wks)
+            except Exception:
+                list_of_lists = current_wks.get_all_values()
+                new_row = len(list_of_lists) + 1
+                update_wks(scan, name, location, 'Deployed', new_row, current_wks)
+            result_confirm(returned)
+        else:
+            print(len(info['computers']))
+            failed_scan(len(info['computers']))
+            logger('Scan Failed![return]Computers expected 1 got %d.' % (len(info['computers'])))
+        return True
 
 def deactivate_mode(creds, current_wks):
     text = "*(Deactivate Mode)*"
     scan = barcode_scan(text)
-    info = get_info(scan, creds)
-    if len(info['computers']) == 1:
-        comp_id = str(info['computers'][0]['id'])
-        ram_size = get_ram(comp_id, creds)
-        status = get_status(comp_id, creds)
-        name = info['computers'][0]['realname']
-        location = info['computers'][0]['building_name']
-        if ram_size == 4096:
-            ram_warning()
-        if (status != "Deployed" and status != "Available Stock" and status != "" and status != "Legal Hold"):
-            status_warning(status)
-            returned = deactivate_without_status(comp_id, creds)
-            try:
-                cell = current_wks.find(scan)
-                cellRow = int(cell.row)
-                update_wks(scan, name, location, status, cellRow, current_wks)
-            except Exception:
-                list_of_lists = current_wks.get_all_values()
-                new_row = len(list_of_lists) + 1
-                update_wks(scan, name, location, status, new_row, current_wks)
-            result_confirm(returned)
-        else:
-            returned = deactivate(comp_id, creds)
-            try:
-                cell = current_wks.find(scan)
-                cellRow = int(cell.row)
-                update_wks(scan, name, location, 'Legal Hold', cellRow, current_wks)
-            except Exception:
-                list_of_lists = current_wks.get_all_values()
-                new_row = len(list_of_lists) + 1
-                update_wks(scan, name, location, 'Legal Hold', new_row, current_wks)
-            result_confirm(returned)
+    if scan == 'exit':
+        return False
     else:
-        print('Computers expected 1 got %d' % (len(info['computers'])))
-        failed_scan(len(info['computers']))
-        logger('Scan Failed!\nComputers expected 1 got %d.' % (len(info['computers'])))
+        info = get_info(scan, creds)
+        if len(info['computers']) == 1:
+            comp_id = str(info['computers'][0]['id'])
+            ram_size = get_ram(comp_id, creds)
+            status = get_status(comp_id, creds)
+            name = info['computers'][0]['realname']
+            location = info['computers'][0]['building_name']
+            if ram_size == 4096:
+                ram_warning()
+            if (status != "Deployed" and status != "Available Stock" and status != "" and status != "Legal Hold"):
+                status_warning(status)
+                returned = deactivate_without_status(comp_id, creds)
+                try:
+                    cell = current_wks.find(scan)
+                    cellRow = int(cell.row)
+                    update_wks(scan, name, location, status, cellRow, current_wks)
+                except Exception:
+                    list_of_lists = current_wks.get_all_values()
+                    new_row = len(list_of_lists) + 1
+                    update_wks(scan, name, location, status, new_row, current_wks)
+                result_confirm(returned)
+            else:
+                returned = deactivate(comp_id, creds)
+                try:
+                    cell = current_wks.find(scan)
+                    cellRow = int(cell.row)
+                    update_wks(scan, name, location, 'Legal Hold', cellRow, current_wks)
+                except Exception:
+                    list_of_lists = current_wks.get_all_values()
+                    new_row = len(list_of_lists) + 1
+                    update_wks(scan, name, location, 'Legal Hold', new_row, current_wks)
+                result_confirm(returned)
+        else:
+            print('Computers expected 1 got %d' % (len(info['computers'])))
+            failed_scan(len(info['computers']))
+            logger('Scan Failed!\nComputers expected 1 got %d.' % (len(info['computers'])))
+        return True
 
 def manual_mode(creds, current_wks):
     manual_status = ''
@@ -158,29 +166,34 @@ def manual_mode(creds, current_wks):
         manual_status = set_status(status_info)
     text = "Manual Status set to:[return]%s" % manual_status
     scan = barcode_scan(text)
-    info = get_info(scan, creds)
-    if len(info['computers']) == 1:
-        comp_id = str(info['computers'][0]['id'])
-        ram_size = get_ram(comp_id, creds)
-        status = get_status(comp_id, creds)
-        name = info['computers'][0]['realname']
-        location = info['computers'][0]['building_name']
-        if ram_size == 4096:
-            ram_warning()
-        returned = set_manual_status(comp_id, creds, manual_status)
-        try:
-            cell = current_wks.find(scan)
-            cellRow = int(cell.row)
-            update_wks(scan, name, location, manual_status, cellRow, current_wks)
-        except Exception:
-            list_of_lists = current_wks.get_all_values()
-            new_row = len(list_of_lists) + 1
-            update_wks(scan, name, location, manual_status, new_row, current_wks)
-        result_confirm(returned)
+    if scan == 'exit':
+        return False
     else:
-        print('Computers expected 1 got %d' % (len(info['computers'])))
-        failed_scan(len(info['computers']))
-        logger('Scan Failed!\nComputers expected 1 got %d.' % (len(info['computers'])))
+        info = get_info(scan, creds)
+        if len(info['computers']) == 1:
+            comp_id = str(info['computers'][0]['id'])
+            ram_size = get_ram(comp_id, creds)
+            status = get_status(comp_id, creds)
+            name = info['computers'][0]['realname']
+            location = info['computers'][0]['building_name']
+            if ram_size == 4096:
+                ram_warning()
+            returned = set_manual_status(comp_id, creds, manual_status)
+            try:
+                cell = current_wks.find(scan)
+                cellRow = int(cell.row)
+                update_wks(scan, name, location, manual_status, cellRow, current_wks)
+            except Exception:
+                list_of_lists = current_wks.get_all_values()
+                new_row = len(list_of_lists) + 1
+                update_wks(scan, name, location, manual_status, new_row, current_wks)
+            result_confirm(returned)
+            return True
+        else:
+            print('Computers expected 1 got %d' % (len(info['computers'])))
+            failed_scan(len(info['computers']))
+            logger('Scan Failed!\nComputers expected 1 got %d.' % (len(info['computers'])))
+
 def office_select():
     try:
         office = shelfFile['office']
@@ -196,10 +209,8 @@ def office_select():
 def get_info_mode(creds, current_wks):
     text = "*(Get Info)*"
     scan = barcode_scan(text)
-    print(scan)
     if scan == 'exit':
-        return function_select()
-        print('Tests')
+        return False
     else:
         info = get_info(scan, creds)
         if len(info['computers']) == 1:
@@ -210,6 +221,7 @@ def get_info_mode(creds, current_wks):
             room = info['computers'][0]['room']
             shit_list = get_shitlist(comp_id, creds)
         get_info_screen(scan, name, status, location, room, shit_list)
+        return True
 
 def get_info(match, creds):
     # Returns json of computers info
@@ -550,20 +562,29 @@ def get_info_screen(scan, name, status, location, room, shit_list):
 def logger(message):
     syslog.syslog(syslog.LOG_ALERT, message)
 
+def process_loop(creds, current_wks):
+    """
+    Docstring incoming
+    """
+    function = function_select()
+    keep_going = True
+    while keep_going:
+        if function == 'Activate':
+            keep_going = activate_mode(creds, current_wks)
+        elif function == 'Deactivate':
+            keep_going = deactivate_mode(creds, current_wks)
+        elif function == 'Manual':
+            keep_going = manual_mode(creds, current_wks)
+        elif function == 'Get Info':
+            keep_going = get_info_mode(creds, current_wks)
+
 def main_loop():
     manual_status = ''
     creds = login()
     current_wks = office_select()
-    function =  function_select()
     while True:
-        if function == 'Activate':
-            activate_mode(creds, current_wks)
-        elif function == 'Deactivate':
-            deactivate_mode(creds, current_wks)
-        elif function == 'Manual':
-            manual_mode(creds, current_wks)
-        elif function == 'Get Info':
-            get_info_mode(creds, current_wks)
+        process_loop(creds, current_wks)
+
 
 
 
